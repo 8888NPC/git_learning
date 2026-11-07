@@ -16,6 +16,9 @@ $RECYCLE.BIN/
 # Logs
 *.log
 
+# Maven build output
+target/
+
 # Local environment variables and private keys
 .env
 .env.*
