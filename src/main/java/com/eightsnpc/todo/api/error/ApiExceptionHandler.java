@@ -1,11 +1,13 @@
 package com.eightsnpc.todo.api.error;
 
+import com.eightsnpc.todo.api.dto.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -14,15 +16,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class ApiExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
-    @ExceptionHandler(TaskNotFoundException.class)
-    public ResponseEntity<ApiError> handleNotFound(TaskNotFoundException exception) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ApiError("TASK_NOT_FOUND", exception.getMessage()));
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException exception) {
+        return failure(exception.getStatus(), exception.getCode(), exception.getMessage());
     }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class,
             IllegalArgumentException.class})
-    public ResponseEntity<ApiError> handleBadRequest(Exception exception) {
+    public ResponseEntity<ApiResponse<Void>> handleBadRequest(Exception exception) {
         String message = exception instanceof MethodArgumentNotValidException validationException
                 ? validationException.getBindingResult().getFieldErrors().stream()
                         .map(error -> error.getDefaultMessage())
@@ -31,20 +32,29 @@ public class ApiExceptionHandler {
                 : exception instanceof IllegalArgumentException
                         ? exception.getMessage()
                         : "请求 JSON 格式不正确";
-        return ResponseEntity.badRequest().body(new ApiError("BAD_REQUEST", message));
+        return failure(HttpStatus.BAD_REQUEST, "BAD_REQUEST", message);
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-    public ResponseEntity<ApiError> handleUnsupportedMediaType(
+    public ResponseEntity<ApiResponse<Void>> handleUnsupportedMediaType(
             HttpMediaTypeNotSupportedException exception) {
-        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                .body(new ApiError("UNSUPPORTED_MEDIA_TYPE", "请求必须使用 JSON 格式"));
+        return failure(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE", "请求必须使用 JSON 格式");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException exception) {
+        return failure(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED", "请求方法不支持");
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpected(Exception exception) {
+    public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception exception) {
         logger.error("处理任务请求时发生未预期错误", exception);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ApiError("INTERNAL_SERVER_ERROR", "服务端发生未预期错误"));
+        return failure(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "服务端发生未预期错误");
+    }
+
+    private ResponseEntity<ApiResponse<Void>> failure(
+            HttpStatus status, String code, String message) {
+        return ResponseEntity.status(status).body(ApiResponse.failure(code, message));
     }
 }

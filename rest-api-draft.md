@@ -3,17 +3,30 @@
 ## 约定
 
 - 基础路径：`/api/v1`
-- 数据格式：请求和响应均使用 `application/json; charset=utf-8`
+- 请求格式：`application/json; charset=utf-8`
 - 任务字段：`id` 为服务端生成的整数；`description` 为 1–200 个字符的非空字符串；`completed` 为布尔值。
-- 未找到指定任务时返回 `404 Not Found`；请求内容不合法时返回 `400 Bad Request`。
+- 成功和错误响应都使用统一的 `ApiResponse` 结构，HTTP 状态码仍表示请求结果类别。
 
-任务示例：
+统一成功响应：
 
 ```json
 {
-  "id": 1,
-  "description": "复习 ArrayList",
-  "completed": false
+  "success": true,
+  "data": {},
+  "error": null
+}
+```
+
+统一错误响应：
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "未找到编号为 9 的任务"
+  }
 }
 ```
 
@@ -29,47 +42,47 @@
 }
 ```
 
-成功返回 `201 Created`，响应体为新建的任务：
+成功返回 `201 Created`，响应示例：
 
 ```json
 {
-  "id": 1,
-  "description": "复习 ArrayList",
-  "completed": false
-}
-```
-
-如果 `description` 缺失、为空或只有空白字符，返回 `400 Bad Request`。
-
-## 2. 查询任务
-
-`GET /api/v1/tasks`
-
-查询全部任务。成功返回 `200 OK`，响应体为任务数组；没有任务时返回空数组：
-
-```json
-[
-  {
+  "success": true,
+  "data": {
     "id": 1,
     "description": "复习 ArrayList",
     "completed": false
-  }
-]
+  },
+  "error": null
+}
 ```
 
-## 3. 查询单个任务
+如果 `description` 缺失、为空或超过 200 个字符，返回 `400 Bad Request`。
 
-`GET /api/v1/tasks/{id}`
+## 2. 查询任务列表
 
-查询指定任务。成功返回 `200 OK`，响应体为任务对象；`{id}` 不存在时返回 `404 Not Found`。
+`GET /api/v1/tasks`
+
+成功返回 `200 OK`，`data` 是任务数组；没有任务时是空数组：
 
 ```json
 {
-  "id": 1,
-  "description": "复习 ArrayList",
-  "completed": false
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "description": "复习 ArrayList",
+      "completed": false
+    }
+  ],
+  "error": null
 }
 ```
+
+## 3. 查询任务详情
+
+`GET /api/v1/tasks/{id}`
+
+成功返回 `200 OK`，`data` 是指定任务。任务不存在时返回 `404 Not Found`。
 
 ## 4. 修改任务
 
@@ -84,28 +97,36 @@
 }
 ```
 
-成功返回 `200 OK`，响应体为修改后的任务。`{id}` 不存在时返回 `404 Not Found`；字段缺失或不合法时返回 `400 Bad Request`。
+成功返回 `200 OK`，`data` 是修改后的任务。任务不存在时返回 `404 Not Found`；字段缺失或不合法时返回 `400 Bad Request`。
 
 ## 5. 删除任务
 
 `DELETE /api/v1/tasks/{id}`
 
-删除指定任务。成功返回 `204 No Content`，响应体为空。`{id}` 不存在时返回 `404 Not Found`。
-
-## 错误响应格式
-
-发生错误时使用统一的 JSON 格式，例如：
+成功返回 `200 OK`：
 
 ```json
 {
-  "code": "TASK_NOT_FOUND",
-  "message": "未找到编号为 9 的任务"
+  "success": true,
+  "data": null,
+  "error": null
 }
 ```
 
-| HTTP 状态码 | 含义 |
-| --- | --- |
-| `400 Bad Request` | 请求字段缺失或格式不合法 |
-| `404 Not Found` | 指定任务不存在 |
-| `415 Unsupported Media Type` | 请求不是 JSON 格式 |
-| `500 Internal Server Error` | 服务端发生未预期错误 |
+任务不存在时返回 `404 Not Found`。
+
+## 健康检查
+
+`GET /api/health`
+
+服务正常时返回 `200 OK`，`data.status` 为 `UP`。
+
+## 错误状态码
+
+| HTTP 状态码 | 错误码示例 | 含义 |
+| --- | --- | --- |
+| `400 Bad Request` | `BAD_REQUEST` | 请求字段缺失或格式不合法 |
+| `404 Not Found` | `TASK_NOT_FOUND` | 指定任务不存在 |
+| `405 Method Not Allowed` | `METHOD_NOT_ALLOWED` | 请求方法不支持 |
+| `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE` | 请求不是 JSON 格式 |
+| `500 Internal Server Error` | `INTERNAL_SERVER_ERROR` | 服务端发生未预期错误 |

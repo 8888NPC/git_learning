@@ -2,11 +2,14 @@ package com.eightsnpc.todo.api;
 
 import com.eightsnpc.todo.Task;
 import com.eightsnpc.todo.TaskService;
+import com.eightsnpc.todo.api.dto.ApiResponse;
 import com.eightsnpc.todo.api.dto.CreateTaskRequest;
 import com.eightsnpc.todo.api.dto.TaskResponse;
 import com.eightsnpc.todo.api.dto.UpdateTaskRequest;
 import com.eightsnpc.todo.api.error.TaskNotFoundException;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/tasks")
+@Tag(name = "任务管理", description = "任务的新增、查询、修改和删除")
 public class TaskController {
     private final TaskService taskService;
 
@@ -29,38 +33,47 @@ public class TaskController {
     }
 
     @PostMapping
-    public ResponseEntity<TaskResponse> create(@Valid @RequestBody CreateTaskRequest request) {
+    @Operation(summary = "新增任务")
+    public ResponseEntity<ApiResponse<TaskResponse>> create(
+            @Valid @RequestBody CreateTaskRequest request) {
         Task task = taskService.add(request.description());
         URI location = URI.create("/api/v1/tasks/" + task.getId());
-        return ResponseEntity.created(location).body(TaskResponse.from(task));
+        return ResponseEntity.created(location).body(ApiResponse.success(TaskResponse.from(task)));
     }
 
     @GetMapping("/{id}")
-    public TaskResponse getById(@PathVariable long id) {
+    @Operation(summary = "查询任务详情")
+    public ApiResponse<TaskResponse> getById(@PathVariable long id) {
         return taskService.findById(id)
                 .map(TaskResponse::from)
+                .map(ApiResponse::success)
                 .orElseThrow(() -> new TaskNotFoundException(id));
     }
 
     @GetMapping
-    public List<TaskResponse> list() {
-        return taskService.list().stream().map(TaskResponse::from).toList();
+    @Operation(summary = "查询任务列表")
+    public ApiResponse<List<TaskResponse>> list() {
+        List<TaskResponse> tasks = taskService.list().stream().map(TaskResponse::from).toList();
+        return ApiResponse.success(tasks);
     }
 
     @PutMapping("/{id}")
-    public TaskResponse update(
+    @Operation(summary = "修改任务")
+    public ApiResponse<TaskResponse> update(
             @PathVariable long id,
             @Valid @RequestBody UpdateTaskRequest request) {
         return taskService.update(id, request.description(), request.completed())
                 .map(TaskResponse::from)
+                .map(ApiResponse::success)
                 .orElseThrow(() -> new TaskNotFoundException(id));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable long id) {
+    @Operation(summary = "删除任务")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable long id) {
         if (!taskService.delete(id)) {
             throw new TaskNotFoundException(id);
         }
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.successWithoutData());
     }
 }
