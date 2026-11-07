@@ -35,6 +35,13 @@ public class TaskController {
         return ResponseEntity.created(location).body(TaskResponse.from(task));
     }
 
+    @GetMapping("/{id}")
+    public TaskResponse getById(@PathVariable long id) {
+        return taskService.findById(id)
+                .map(TaskResponse::from)
+                .orElseThrow(() -> new TaskNotFoundException(id));
+    }
+
     @GetMapping
     public List<TaskResponse> list() {
         return taskService.list().stream().map(TaskResponse::from).toList();

@@ -57,7 +57,21 @@
 ]
 ```
 
-## 3. 修改任务
+## 3. 查询单个任务
+
+`GET /api/v1/tasks/{id}`
+
+查询指定任务。成功返回 `200 OK`，响应体为任务对象；`{id}` 不存在时返回 `404 Not Found`。
+
+```json
+{
+  "id": 1,
+  "description": "复习 ArrayList",
+  "completed": false
+}
+```
+
+## 4. 修改任务
 
 `PUT /api/v1/tasks/{id}`
 
@@ -72,7 +86,7 @@
 
 成功返回 `200 OK`，响应体为修改后的任务。`{id}` 不存在时返回 `404 Not Found`；字段缺失或不合法时返回 `400 Bad Request`。
 
-## 4. 删除任务
+## 5. 删除任务
 
 `DELETE /api/v1/tasks/{id}`
 

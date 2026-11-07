@@ -22,6 +22,14 @@ public final class InMemoryTaskService implements TaskService {
     }
 
     @Override
+    public synchronized Optional<Task> findById(long id) {
+        return tasks.stream()
+                .filter(task -> task.getId() == id)
+                .findFirst()
+                .map(Task::copy);
+    }
+
+    @Override
     public synchronized List<Task> list() {
         return tasks.stream().map(Task::copy).toList();
     }
