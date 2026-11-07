@@ -9,6 +9,26 @@
 
 环境记录见 [environment-record.md](environment-record.md)，接口详细约定见 [rest-api-draft.md](rest-api-draft.md)。
 
+脚手架目录、分层职责和团队协作约定见 [scaffold-v1 基线说明](docs/scaffold-v1.md)。
+
+## 项目结构
+
+```text
+src/main/java/com/eightsnpc/todo/
+├── Task.java                         # 任务领域对象
+├── TaskService.java                  # 任务服务接口
+├── InMemoryTaskService.java          # 内存版业务实现
+├── TaskApiApplication.java           # Spring Boot 启动类
+└── api/
+    ├── TaskController.java           # 任务 HTTP 接口
+    ├── HealthController.java          # 健康检查接口
+    ├── OpenApiConfiguration.java     # OpenAPI 元数据
+    ├── dto/                          # 请求、响应和统一包装
+    └── error/                        # 业务异常和全局异常处理
+src/main/resources/application.yml    # 应用配置
+src/test/java/                        # MockMvc 自动化测试
+```
+
 ## 启动项目
 
 在项目根目录运行：
@@ -98,3 +118,11 @@ Invoke-RestMethod -Method Delete -Uri "http://localhost:8080/api/v1/tasks/$($tas
 ```
 
 任务数据保存在内存中，应用重启后会清空。
+
+## 运行自动化测试
+
+```powershell
+mvn test
+```
+
+当前测试覆盖健康检查、任务增删查改、参数校验和任务不存在等场景。
