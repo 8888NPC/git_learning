@@ -2,6 +2,7 @@ package com.eightsnpc.todo.api;
 
 import com.eightsnpc.todo.Task;
 import com.eightsnpc.todo.TaskService;
+import com.eightsnpc.todo.PageResult;
 import com.eightsnpc.todo.api.dto.ApiResponse;
 import com.eightsnpc.todo.api.dto.CreateTaskRequest;
 import com.eightsnpc.todo.api.dto.TaskResponse;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,7 +38,7 @@ public class TaskController {
     @Operation(summary = "新增任务")
     public ResponseEntity<ApiResponse<TaskResponse>> create(
             @Valid @RequestBody CreateTaskRequest request) {
-        Task task = taskService.add(request.description());
+        Task task = taskService.add(request.description(), request.projectId());
         URI location = URI.create("/api/v1/tasks/" + task.getId());
         return ResponseEntity.created(location).body(ApiResponse.success(TaskResponse.from(task)));
     }
@@ -52,9 +54,16 @@ public class TaskController {
 
     @GetMapping
     @Operation(summary = "查询任务列表")
-    public ApiResponse<List<TaskResponse>> list() {
-        List<TaskResponse> tasks = taskService.list().stream().map(TaskResponse::from).toList();
-        return ApiResponse.success(tasks);
+    public ApiResponse<PageResult<TaskResponse>> list(
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) Boolean completed,
+            @RequestParam(required = false) String keyword) {
+        PageResult<Task> taskPage = taskService.page(page, size, projectId, completed, keyword);
+        List<TaskResponse> records = taskPage.records().stream().map(TaskResponse::from).toList();
+        return ApiResponse.success(new PageResult<>(
+                taskPage.current(), taskPage.size(), taskPage.total(), records));
     }
 
     @PutMapping("/{id}")

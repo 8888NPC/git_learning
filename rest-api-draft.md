@@ -1,132 +1,73 @@
-# 任务清单 REST 接口草稿
+# Project/Task REST 接口
 
 ## 约定
 
-- 基础路径：`/api/v1`
-- 请求格式：`application/json; charset=utf-8`
-- 任务字段：`id` 为服务端生成的整数；`description` 为 1–200 个字符的非空字符串；`completed` 为布尔值。
-- 成功和错误响应都使用统一的 `ApiResponse` 结构，HTTP 状态码仍表示请求结果类别。
+- 基础路径：`/api/v1`，请求和响应使用 JSON。
+- 成功和错误响应使用统一的 `ApiResponse`：`{ "success": true, "data": {}, "error": null }`。
+- 任务内容为 1–200 个字符；项目名称为 1–100 个字符；项目描述可选，最多 500 个字符。
+- `page` 从 1 开始，`size` 范围为 1–100。分页结果包含 `current`、`size`、`total` 和 `records`。
 
-统一成功响应：
+## 任务接口
 
-```json
-{
-  "success": true,
-  "data": {},
-  "error": null
-}
-```
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/v1/tasks` | 新增独立任务或关联到项目的任务 |
+| `GET` | `/api/v1/tasks/{id}` | 查询任务详情 |
+| `GET` | `/api/v1/tasks` | 搜索并分页查询任务 |
+| `PUT` | `/api/v1/tasks/{id}` | 修改任务内容和完成状态 |
+| `DELETE` | `/api/v1/tasks/{id}` | 删除任务 |
 
-统一错误响应：
-
-```json
-{
-  "success": false,
-  "data": null,
-  "error": {
-    "code": "TASK_NOT_FOUND",
-    "message": "未找到编号为 9 的任务"
-  }
-}
-```
-
-## 1. 新增任务
-
-`POST /api/v1/tasks`
-
-请求：
+新增任务请求示例：
 
 ```json
 {
-  "description": "复习 ArrayList"
+  "projectId": 1,
+  "description": "复习 MyBatis-Plus"
 }
 ```
 
-成功返回 `201 Created`，响应示例：
+任务列表支持 `page`、`size`、`projectId`、`completed`、`keyword` 参数，均可选；默认 `page=1`、`size=10`。
+
+## 项目接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/v1/projects` | 新增项目 |
+| `POST` | `/api/v1/projects/with-first-task` | 在同一事务中创建项目和首个任务 |
+| `GET` | `/api/v1/projects/{id}` | 查询项目详情 |
+| `GET` | `/api/v1/projects` | 搜索并分页查询项目 |
+| `PUT` | `/api/v1/projects/{id}` | 修改项目 |
+| `DELETE` | `/api/v1/projects/{id}` | 删除项目并级联删除其任务 |
+
+新增项目请求示例：
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": 1,
-    "description": "复习 ArrayList",
-    "completed": false
-  },
-  "error": null
+  "name": "MySQL 学习",
+  "description": "第三周练习"
 }
 ```
 
-如果 `description` 缺失、为空或超过 200 个字符，返回 `400 Bad Request`。
-
-## 2. 查询任务列表
-
-`GET /api/v1/tasks`
-
-成功返回 `200 OK`，`data` 是任务数组；没有任务时是空数组：
+同时创建项目和首个任务：
 
 ```json
 {
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "description": "复习 ArrayList",
-      "completed": false
-    }
-  ],
-  "error": null
+  "name": "MySQL 学习",
+  "description": "第三周练习",
+  "firstTaskDescription": "完成分页接口"
 }
 ```
 
-## 3. 查询任务详情
+项目列表支持 `page`、`size`、`keyword` 参数，关键字匹配项目名称；分页默认值与任务列表相同。
 
-`GET /api/v1/tasks/{id}`
-
-成功返回 `200 OK`，`data` 是指定任务。任务不存在时返回 `404 Not Found`。
-
-## 4. 修改任务
-
-`PUT /api/v1/tasks/{id}`
-
-完整替换指定任务的可修改字段；`description` 和 `completed` 都必须提供。请求：
-
-```json
-{
-  "description": "复习 Java 集合",
-  "completed": true
-}
-```
-
-成功返回 `200 OK`，`data` 是修改后的任务。任务不存在时返回 `404 Not Found`；字段缺失或不合法时返回 `400 Bad Request`。
-
-## 5. 删除任务
-
-`DELETE /api/v1/tasks/{id}`
-
-成功返回 `200 OK`：
-
-```json
-{
-  "success": true,
-  "data": null,
-  "error": null
-}
-```
-
-任务不存在时返回 `404 Not Found`。
-
-## 健康检查
-
-`GET /api/health`
-
-服务正常时返回 `200 OK`，`data.status` 为 `UP`。
-
-## 错误状态码
+## 状态码和错误
 
 | HTTP 状态码 | 错误码示例 | 含义 |
 | --- | --- | --- |
-| `400 Bad Request` | `BAD_REQUEST` | 请求字段缺失或格式不合法 |
-| `404 Not Found` | `TASK_NOT_FOUND` | 指定任务不存在 |
-| `405 Method Not Allowed` | `METHOD_NOT_ALLOWED` | 请求方法不支持 |
+| `400 Bad Request` | `BAD_REQUEST` | 请求内容、页码或页大小不合法 |
+| `404 Not Found` | `TASK_NOT_FOUND`、`PROJECT_NOT_FOUND` | 请求的资源不存在 |
+| `405 Method Not Allowed` | `METHOD_NOT_ALLOWED` | 不支持该 HTTP 方法 |
 | `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE` | 请求不是 JSON 格式 |
 | `500 Internal Server Error` | `INTERNAL_SERVER_ERROR` | 服务端发生未预期错误 |
+
+健康检查：`GET /api/health`。交互式接口文档：`/swagger-ui.html`。

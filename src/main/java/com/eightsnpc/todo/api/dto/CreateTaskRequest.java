@@ -9,5 +9,7 @@ public record CreateTaskRequest(
         @Schema(description = "任务内容，不能为空且最多 200 个字符", example = "复习 Spring Boot")
         @NotBlank(message = "任务内容不能为空")
         @Size(max = 200, message = "任务内容不能超过 200 个字符")
-        String description) {
+        String description,
+        @Schema(description = "所属项目 ID；不属于项目时可省略", example = "1")
+        Long projectId) {
 }

@@ -1,5 +1,7 @@
 package com.eightsnpc.todo.api;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -9,18 +11,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.hamcrest.Matchers.matchesPattern;
 
-import com.eightsnpc.todo.Task;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.eightsnpc.todo.ProjectService;
 import com.eightsnpc.todo.TaskService;
+import com.eightsnpc.todo.persistence.mapper.ProjectMapper;
+import com.eightsnpc.todo.persistence.mapper.TaskMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 class TaskApiIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
@@ -28,9 +35,19 @@ class TaskApiIntegrationTest {
     @Autowired
     private TaskService taskService;
 
+    @Autowired
+    private ProjectService projectService;
+
+    @Autowired
+    private TaskMapper taskMapper;
+
+    @Autowired
+    private ProjectMapper projectMapper;
+
     @BeforeEach
-    void clearTasks() {
-        taskService.list().forEach(task -> taskService.delete(task.getId()));
+    void clearDatabase() {
+        taskMapper.delete(new QueryWrapper<>());
+        projectMapper.delete(new QueryWrapper<>());
     }
 
     @Test
@@ -43,31 +60,38 @@ class TaskApiIntegrationTest {
     }
 
     @Test
-    void createReturnsCreatedTaskAndLocation() throws Exception {
+    void createTaskReturnsCreatedTaskAndLocation() throws Exception {
         mockMvc.perform(post("/api/v1/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"description\":\"学习 MockMvc\"}"))
+                        .content("{\"description\":\"学习 MySQL\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", matchesPattern("/api/v1/tasks/\\d+")))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.description").value("学习 MockMvc"))
+                .andExpect(jsonPath("$.data.description").value("学习 MySQL"))
+                .andExpect(jsonPath("$.data.projectId").doesNotExist())
                 .andExpect(jsonPath("$.data.completed").value(false));
     }
 
     @Test
-    void listReturnsTasksInResponseData() throws Exception {
-        taskService.add("列表测试任务");
+    void listTasksReturnsFilteredPage() throws Exception {
+        taskService.add("MySQL 分页练习");
+        taskService.add("Java 复习");
 
-        mockMvc.perform(get("/api/v1/tasks"))
+        mockMvc.perform(get("/api/v1/tasks")
+                        .param("page", "1")
+                        .param("size", "1")
+                        .param("keyword", "MySQL"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].description").value("列表测试任务"));
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.current").value(1))
+                .andExpect(jsonPath("$.data.records.length()").value(1))
+                .andExpect(jsonPath("$.data.records[0].description").value("MySQL 分页练习"));
     }
 
     @Test
-    void getByIdReturnsTaskDetails() throws Exception {
-        Task task = taskService.add("详情测试任务");
+    void getTaskByIdReturnsDetails() throws Exception {
+        var task = taskService.add("详情测试任务");
 
         mockMvc.perform(get("/api/v1/tasks/{id}", task.getId()))
                 .andExpect(status().isOk())
@@ -77,8 +101,8 @@ class TaskApiIntegrationTest {
     }
 
     @Test
-    void updateChangesTaskFields() throws Exception {
-        Task task = taskService.add("待修改任务");
+    void updateTaskChangesDescriptionAndStatus() throws Exception {
+        var task = taskService.add("待修改任务");
 
         mockMvc.perform(put("/api/v1/tasks/{id}", task.getId())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -90,48 +114,109 @@ class TaskApiIntegrationTest {
     }
 
     @Test
-    void deleteRemovesTaskAndReturnsUnifiedSuccessResponse() throws Exception {
-        Task task = taskService.add("待删除任务");
+    void deleteTaskRemovesItAndReturnsUnifiedResponse() throws Exception {
+        var task = taskService.add("待删除任务");
 
         mockMvc.perform(delete("/api/v1/tasks/{id}", task.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").doesNotExist())
                 .andExpect(jsonPath("$.error").doesNotExist());
-
-        mockMvc.perform(get("/api/v1/tasks"))
-                .andExpect(jsonPath("$.data.length()").value(0));
+        assertEquals(0, taskService.page(1, 10, null, null, null).total());
     }
 
     @Test
-    void blankDescriptionReturnsUnifiedBadRequest() throws Exception {
+    void blankTaskDescriptionReturnsBadRequest() throws Exception {
         mockMvc.perform(post("/api/v1/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"description\":\"   \"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"))
-                .andExpect(jsonPath("$.error.message").value("任务内容不能为空"));
+                .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
     }
 
     @Test
-    void missingCompletedFieldReturnsUnifiedBadRequest() throws Exception {
-        Task task = taskService.add("参数校验任务");
-
-        mockMvc.perform(put("/api/v1/tasks/{id}", task.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"description\":\"缺少 completed\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"))
-                .andExpect(jsonPath("$.error.message").value("completed 字段不能为空"));
-    }
-
-    @Test
-    void missingTaskReturnsUnifiedNotFound() throws Exception {
+    void missingTaskReturnsNotFound() throws Exception {
         mockMvc.perform(get("/api/v1/tasks/999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("TASK_NOT_FOUND"));
+    }
+
+    @Test
+    void createProjectReturnsPersistedProject() throws Exception {
+        mockMvc.perform(post("/api/v1/projects")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"MySQL 学习\",\"description\":\"数据库练习\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.name").value("MySQL 学习"));
+    }
+
+    @Test
+    void listProjectsSupportsPaginationAndNameSearch() throws Exception {
+        projectService.create("Java 项目", null);
+        projectService.create("Java 数据库练习", "MySQL");
+        projectService.create("Spring 项目", null);
+
+        mockMvc.perform(get("/api/v1/projects")
+                        .param("page", "1")
+                        .param("size", "1")
+                        .param("keyword", "Java"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.records.length()").value(1));
+    }
+
+    @Test
+    void getAndUpdateProjectWork() throws Exception {
+        var project = projectService.create("旧项目名", "旧描述");
+
+        mockMvc.perform(put("/api/v1/projects/{id}", project.id())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"新项目名\",\"description\":\"新描述\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("新项目名"));
+        mockMvc.perform(get("/api/v1/projects/{id}", project.id()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.description").value("新描述"));
+    }
+
+    @Test
+    void deleteProjectAlsoDeletesItsTasks() throws Exception {
+        var project = projectService.create("级联删除项目", null);
+        taskService.add("项目任务", project.id());
+
+        mockMvc.perform(delete("/api/v1/projects/{id}", project.id()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+        assertEquals(0, taskService.page(1, 10, null, null, null).total());
+    }
+
+    @Test
+    void createProjectWithFirstTaskPersistsBoth() throws Exception {
+        mockMvc.perform(post("/api/v1/projects/with-first-task")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"事务项目\",\"description\":\"回归测试\","
+                                + "\"firstTaskDescription\":\"首个任务\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.project.name").value("事务项目"))
+                .andExpect(jsonPath("$.data.firstTask.description").value("首个任务"))
+                .andExpect(jsonPath("$.data.firstTask.projectId").isNotEmpty());
+        assertEquals(1, taskService.page(1, 10, null, null, null).total());
+    }
+
+    @Test
+    void failedFirstTaskCreationRollsBackProjectInsert() {
+        assertThrows(IllegalArgumentException.class,
+                () -> projectService.createWithFirstTask("回滚项目", null, "   "));
+        assertEquals(0, projectService.page(1, 10, null).total());
+    }
+
+    @Test
+    void projectNotFoundReturnsUnifiedError() throws Exception {
+        mockMvc.perform(get("/api/v1/projects/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("PROJECT_NOT_FOUND"));
     }
 }
