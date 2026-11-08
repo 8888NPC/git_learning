@@ -4,6 +4,8 @@ import com.eightsnpc.todo.PageResult;
 import com.eightsnpc.todo.Project;
 import com.eightsnpc.todo.ProjectCreationResult;
 import com.eightsnpc.todo.ProjectService;
+import com.eightsnpc.todo.Task;
+import com.eightsnpc.todo.TaskService;
 import com.eightsnpc.todo.api.dto.ApiResponse;
 import com.eightsnpc.todo.api.dto.CreateProjectRequest;
 import com.eightsnpc.todo.api.dto.CreateProjectWithFirstTaskRequest;
@@ -33,9 +35,11 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "项目管理", description = "项目的新增、查询、修改、删除和分页搜索")
 public class ProjectController {
     private final ProjectService projectService;
+    private final TaskService taskService;
 
-    public ProjectController(ProjectService projectService) {
+    public ProjectController(ProjectService projectService, TaskService taskService) {
         this.projectService = projectService;
+        this.taskService = taskService;
     }
 
     @PostMapping
@@ -76,6 +80,22 @@ public class ProjectController {
             @RequestParam(required = false) String keyword) {
         PageResult<Project> result = projectService.page(page, size, keyword);
         List<ProjectResponse> records = result.records().stream().map(ProjectResponse::from).toList();
+        return ApiResponse.success(new PageResult<>(result.current(), result.size(), result.total(), records));
+    }
+
+    @GetMapping("/{projectId}/tasks")
+    @Operation(summary = "查询项目下的任务")
+    public ApiResponse<PageResult<TaskResponse>> listTasks(
+            @PathVariable long projectId,
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) Boolean completed,
+            @RequestParam(required = false) String keyword) {
+        if (projectService.findById(projectId).isEmpty()) {
+            throw new ProjectNotFoundException(projectId);
+        }
+        PageResult<Task> result = taskService.page(page, size, projectId, completed, keyword);
+        List<TaskResponse> records = result.records().stream().map(TaskResponse::from).toList();
         return ApiResponse.success(new PageResult<>(result.current(), result.size(), result.total(), records));
     }
 

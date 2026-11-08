@@ -18,6 +18,8 @@ public interface TaskService {
 
     boolean complete(long id);
 
+    Optional<Task> setCompletionStatus(long id, boolean completed);
+
     Optional<Task> update(long id, String description, boolean completed);
 
     boolean delete(long id);

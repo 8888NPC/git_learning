@@ -68,12 +68,18 @@ public class DatabaseTaskService implements TaskService {
 
     @Override
     public boolean complete(long id) {
+        return setCompletionStatus(id, true).isPresent();
+    }
+
+    @Override
+    public Optional<Task> setCompletionStatus(long id, boolean completed) {
         TaskEntity entity = taskMapper.selectById(id);
         if (entity == null) {
-            return false;
+            return Optional.empty();
         }
-        entity.setCompleted(true);
-        return taskMapper.updateById(entity) > 0;
+        entity.setCompleted(completed);
+        taskMapper.updateById(entity);
+        return Optional.of(toDomain(entity));
     }
 
     @Override

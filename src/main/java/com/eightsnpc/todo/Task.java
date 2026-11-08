@@ -37,6 +37,10 @@ public final class Task {
         completed = true;
     }
 
+    public void setCompleted(boolean completed) {
+        this.completed = completed;
+    }
+
     public void update(String description, boolean completed) {
         this.description = description;
         this.completed = completed;

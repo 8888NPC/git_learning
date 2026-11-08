@@ -12,9 +12,11 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `POST` | `/api/v1/tasks` | 新增独立任务或关联到项目的任务 |
+| `POST` | `/api/v1/tasks/with-first-comment` | 在一个事务中创建任务和首条评论 |
 | `GET` | `/api/v1/tasks/{id}` | 查询任务详情 |
 | `GET` | `/api/v1/tasks` | 搜索并分页查询任务 |
 | `PUT` | `/api/v1/tasks/{id}` | 修改任务内容和完成状态 |
+| `PATCH` | `/api/v1/tasks/{id}/status` | 单独修改任务完成状态 |
 | `DELETE` | `/api/v1/tasks/{id}` | 删除任务 |
 
 新增任务请求示例：
@@ -35,6 +37,7 @@
 | `POST` | `/api/v1/projects` | 新增项目 |
 | `POST` | `/api/v1/projects/with-first-task` | 在同一事务中创建项目和首个任务 |
 | `GET` | `/api/v1/projects/{id}` | 查询项目详情 |
+| `GET` | `/api/v1/projects/{id}/tasks` | 查询项目下的任务 |
 | `GET` | `/api/v1/projects` | 搜索并分页查询项目 |
 | `PUT` | `/api/v1/projects/{id}` | 修改项目 |
 | `DELETE` | `/api/v1/projects/{id}` | 删除项目并级联删除其任务 |
@@ -60,12 +63,32 @@
 
 项目列表支持 `page`、`size`、`keyword` 参数，关键字匹配项目名称；分页默认值与任务列表相同。
 
+## 评论接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/v1/tasks/{taskId}/comments` | 给任务新增评论 |
+| `GET` | `/api/v1/tasks/{taskId}/comments` | 分页查询任务评论，按评论 ID 倒序 |
+| `GET` | `/api/v1/comments/{id}` | 查询评论详情 |
+| `PUT` | `/api/v1/comments/{id}` | 修改评论内容 |
+| `DELETE` | `/api/v1/comments/{id}` | 删除评论 |
+
+新增评论请求示例：
+
+```json
+{
+  "content": "已完成初步检查"
+}
+```
+
+评论内容为 1–1000 个字符。评论必须关联现有任务；删除任务时，数据库会级联删除该任务的评论。
+
 ## 状态码和错误
 
 | HTTP 状态码 | 错误码示例 | 含义 |
 | --- | --- | --- |
 | `400 Bad Request` | `BAD_REQUEST` | 请求内容、页码或页大小不合法 |
-| `404 Not Found` | `TASK_NOT_FOUND`、`PROJECT_NOT_FOUND` | 请求的资源不存在 |
+| `404 Not Found` | `TASK_NOT_FOUND`、`PROJECT_NOT_FOUND`、`COMMENT_NOT_FOUND` | 请求的资源不存在 |
 | `405 Method Not Allowed` | `METHOD_NOT_ALLOWED` | 不支持该 HTTP 方法 |
 | `415 Unsupported Media Type` | `UNSUPPORTED_MEDIA_TYPE` | 请求不是 JSON 格式 |
 | `500 Internal Server Error` | `INTERNAL_SERVER_ERROR` | 服务端发生未预期错误 |

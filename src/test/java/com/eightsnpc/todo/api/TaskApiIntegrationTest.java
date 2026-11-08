@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -12,8 +13,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.hamcrest.Matchers.matchesPattern;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.eightsnpc.todo.CommentService;
 import com.eightsnpc.todo.ProjectService;
 import com.eightsnpc.todo.TaskService;
+import com.eightsnpc.todo.TaskWorkflowService;
+import com.eightsnpc.todo.persistence.mapper.CommentMapper;
 import com.eightsnpc.todo.persistence.mapper.ProjectMapper;
 import com.eightsnpc.todo.persistence.mapper.TaskMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,13 +43,23 @@ class TaskApiIntegrationTest {
     private ProjectService projectService;
 
     @Autowired
+    private CommentService commentService;
+
+    @Autowired
+    private TaskWorkflowService taskWorkflowService;
+
+    @Autowired
     private TaskMapper taskMapper;
 
     @Autowired
     private ProjectMapper projectMapper;
 
+    @Autowired
+    private CommentMapper commentMapper;
+
     @BeforeEach
     void clearDatabase() {
+        commentMapper.delete(new QueryWrapper<>());
         taskMapper.delete(new QueryWrapper<>());
         projectMapper.delete(new QueryWrapper<>());
     }
@@ -218,5 +232,156 @@ class TaskApiIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("PROJECT_NOT_FOUND"));
+    }
+
+    @Test
+    void createCommentReturnsCreatedComment() throws Exception {
+        var task = taskService.add("带评论的任务");
+
+        mockMvc.perform(post("/api/v1/tasks/{taskId}/comments", task.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"已开始处理\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", matchesPattern("/api/v1/comments/\\d+")))
+                .andExpect(jsonPath("$.data.taskId").value(task.getId()))
+                .andExpect(jsonPath("$.data.content").value("已开始处理"))
+                .andExpect(jsonPath("$.data.createdAt").isNotEmpty());
+    }
+
+    @Test
+    void listCommentsByTaskSupportsPaginationAndStableOrdering() throws Exception {
+        var task = taskService.add("评论分页任务");
+        commentService.create(task.getId(), "第一条评论");
+        var newest = commentService.create(task.getId(), "第二条评论");
+
+        mockMvc.perform(get("/api/v1/tasks/{taskId}/comments", task.getId())
+                        .param("page", "1")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.records.length()").value(1))
+                .andExpect(jsonPath("$.data.records[0].id").value(newest.id()));
+    }
+
+    @Test
+    void getAndUpdateCommentWork() throws Exception {
+        var task = taskService.add("评论详情任务");
+        var comment = commentService.create(task.getId(), "原评论");
+
+        mockMvc.perform(put("/api/v1/comments/{id}", comment.id())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"修改后的评论\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").value("修改后的评论"));
+        mockMvc.perform(get("/api/v1/comments/{id}", comment.id()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.taskId").value(task.getId()))
+                .andExpect(jsonPath("$.data.content").value("修改后的评论"));
+    }
+
+    @Test
+    void deleteCommentRemovesIt() throws Exception {
+        var task = taskService.add("评论删除任务");
+        var comment = commentService.create(task.getId(), "待删除评论");
+
+        mockMvc.perform(delete("/api/v1/comments/{id}", comment.id()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+        assertEquals(0, commentService.pageByTask(task.getId(), 1, 10).total());
+    }
+
+    @Test
+    void blankCommentReturnsBadRequest() throws Exception {
+        var task = taskService.add("评论校验任务");
+
+        mockMvc.perform(post("/api/v1/tasks/{taskId}/comments", task.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"  \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void missingCommentReturnsNotFound() throws Exception {
+        mockMvc.perform(get("/api/v1/comments/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("COMMENT_NOT_FOUND"));
+    }
+
+    @Test
+    void commentsForMissingTaskReturnTaskNotFound() throws Exception {
+        mockMvc.perform(get("/api/v1/tasks/999/comments"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("TASK_NOT_FOUND"));
+    }
+
+    @Test
+    void projectsExposeTheirTasksThroughAssociatedQuery() throws Exception {
+        var project = projectService.create("关联查询项目", null);
+        taskService.add("关联项目任务", project.id());
+        taskService.add("独立任务");
+
+        mockMvc.perform(get("/api/v1/projects/{projectId}/tasks", project.id())
+                        .param("page", "1")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].projectId").value(project.id()));
+    }
+
+    @Test
+    void taskStatusCanBeCompletedAndReopened() throws Exception {
+        var task = taskService.add("状态流转任务");
+
+        mockMvc.perform(patch("/api/v1/tasks/{id}/status", task.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"completed\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.completed").value(true));
+        mockMvc.perform(patch("/api/v1/tasks/{id}/status", task.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"completed\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.completed").value(false));
+    }
+
+    @Test
+    void missingTaskStatusUpdateReturnsNotFound() throws Exception {
+        mockMvc.perform(patch("/api/v1/tasks/999/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"completed\":true}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("TASK_NOT_FOUND"));
+    }
+
+    @Test
+    void createTaskWithFirstCommentPersistsBoth() throws Exception {
+        mockMvc.perform(post("/api/v1/tasks/with-first-comment")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"description\":\"事务任务\","
+                                + "\"firstCommentContent\":\"首条进度\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.task.description").value("事务任务"))
+                .andExpect(jsonPath("$.data.firstComment.content").value("首条进度"))
+                .andExpect(jsonPath("$.data.firstComment.taskId").isNotEmpty());
+        assertEquals(1, taskService.page(1, 10, null, null, null).total());
+    }
+
+    @Test
+    void failedFirstCommentCreationRollsBackTaskInsert() {
+        assertThrows(IllegalArgumentException.class,
+                () -> taskWorkflowService.createWithFirstComment("回滚任务", null, "   "));
+        assertEquals(0, taskService.page(1, 10, null, null, null).total());
+        assertEquals(0, commentMapper.selectCount(new QueryWrapper<>()));
+    }
+
+    @Test
+    void deletingTaskAlsoDeletesItsComments() throws Exception {
+        var task = taskService.add("评论级联任务");
+        commentService.create(task.getId(), "将随任务删除");
+
+        mockMvc.perform(delete("/api/v1/tasks/{id}", task.getId()))
+                .andExpect(status().isOk());
+        assertEquals(0, commentMapper.selectCount(new QueryWrapper<>()));
     }
 }

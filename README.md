@@ -1,6 +1,6 @@
 # 任务清单 REST API
 
-这是一个 Java 21、Spring Boot 3、MyBatis-Plus 和 MySQL 项目，提供 Project/Task 的增删改查、分页搜索，以及“创建项目并创建首个任务”的事务接口。
+这是一个 Java 21、Spring Boot 3、MyBatis-Plus 和 MySQL 项目，提供 Project/Task/Comment 三个业务模块、关联查询、分页搜索、任务状态修改，以及跨表事务接口。
 
 ## 环境
 
@@ -46,7 +46,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\stop-local-mysql.ps1
 
 ## 数据模型
 
-简单 ER 图见 [docs/er-diagram.md](docs/er-diagram.md)。`projects` 与 `tasks` 是一对多关系；任务可以没有所属项目，删除项目会级联删除其任务。建表语句见 [src/main/resources/db/init.sql](src/main/resources/db/init.sql)。
+简单 ER 图见 [docs/er-diagram.md](docs/er-diagram.md)。`projects` 与 `tasks` 是一对多关系；任务可以没有所属项目。`tasks` 与 `comments` 也是一对多关系。删除项目会级联删除其任务和评论，删除任务会级联删除评论。建表语句见 [src/main/resources/db/init.sql](src/main/resources/db/init.sql)。
 
 ## 用户端接口
 
@@ -61,9 +61,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\stop-local-mysql.ps1
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `POST` | `/api/v1/tasks` | 新增任务，可选 `projectId` |
+| `POST` | `/api/v1/tasks/with-first-comment` | 在同一事务中创建任务和首条评论 |
 | `GET` | `/api/v1/tasks/{id}` | 查询任务详情 |
 | `GET` | `/api/v1/tasks` | 分页搜索任务 |
 | `PUT` | `/api/v1/tasks/{id}` | 修改任务内容和完成状态 |
+| `PATCH` | `/api/v1/tasks/{id}/status` | 单独修改任务完成状态 |
 | `DELETE` | `/api/v1/tasks/{id}` | 删除任务 |
 
 项目接口：
@@ -73,11 +75,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\stop-local-mysql.ps1
 | `POST` | `/api/v1/projects` | 新增项目 |
 | `POST` | `/api/v1/projects/with-first-task` | 在同一事务中创建项目和首个任务 |
 | `GET` | `/api/v1/projects/{id}` | 查询项目详情 |
+| `GET` | `/api/v1/projects/{id}/tasks` | 查询项目下的任务 |
 | `GET` | `/api/v1/projects` | 分页搜索项目 |
 | `PUT` | `/api/v1/projects/{id}` | 修改项目 |
 | `DELETE` | `/api/v1/projects/{id}` | 删除项目及其任务 |
 
-分页参数：`page` 从 1 开始，`size` 范围为 1–100。任务支持 `projectId`、`completed`、`keyword` 筛选；项目支持 `keyword` 搜索。成功和错误响应统一包装为 `{ success, data, error }`。
+评论接口：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/v1/tasks/{taskId}/comments` | 给任务新增评论 |
+| `GET` | `/api/v1/tasks/{taskId}/comments` | 分页查询任务评论 |
+| `GET` | `/api/v1/comments/{id}` | 查询评论详情 |
+| `PUT` | `/api/v1/comments/{id}` | 修改评论 |
+| `DELETE` | `/api/v1/comments/{id}` | 删除评论 |
+
+分页参数：`page` 从 1 开始，`size` 范围为 1–100。任务支持 `projectId`、`completed`、`keyword` 筛选；项目支持 `keyword` 搜索；评论列表固定按任务关联并按 ID 倒序排列。成功和错误响应统一包装为 `{ success, data, error }`。
 
 PowerShell 试用示例：
 
@@ -91,14 +104,31 @@ Invoke-RestMethod -Uri 'http://localhost:8080/api/v1/tasks?page=1&size=10&keywor
 Invoke-RestMethod -Method Delete -Uri "http://localhost:8080/api/v1/projects/$($project.data.project.id)"
 ```
 
+评论与状态操作示例：
+
+```powershell
+$task = Invoke-RestMethod -Method Post `
+  -Uri 'http://localhost:8080/api/v1/tasks' `
+  -ContentType 'application/json' `
+  -Body '{"description":"检查综合项目流程"}'
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8080/api/v1/tasks/$($task.data.id)/comments" `
+  -ContentType 'application/json' `
+  -Body '{"content":"已经完成初步检查"}'
+Invoke-RestMethod -Method Patch `
+  -Uri "http://localhost:8080/api/v1/tasks/$($task.data.id)/status" `
+  -ContentType 'application/json' `
+  -Body '{"completed":true}'
+```
+
 ## 验证
 
 ```powershell
 mvn clean verify
 ```
 
-测试使用 H2 的 MySQL 兼容模式，覆盖任务和项目 CRUD、分页搜索、参数错误、级联删除及事务回滚。测试数据库配置位于 `src/test/resources`，不会连接或清空本机 MySQL 数据库。
+测试使用 H2 的 MySQL 兼容模式，覆盖 Project/Task/Comment CRUD、分页与关联查询、状态修改、参数错误、级联删除及事务回滚。测试数据库配置位于 `src/test/resources`，不会连接或清空本机 MySQL 数据库。SQL 技能审查记录见 [docs/week-04-skill-review.md](docs/week-04-skill-review.md)。
 
 ## 分支与本周产出
 
-本周个人功能分支：`feature/week-03-mysql`。团队 PR 审查与合并由团队流程完成。第二周脚手架基线见 [docs/scaffold-v1.md](docs/scaffold-v1.md)。
+第三周个人分支与标签：`feature/week-03-mysql`、`week-03`。第四周个人分支与标签：`feature/week-04-comments`、`week-04`。团队 PR 审查与合并由团队流程完成。脚手架基线见 [docs/scaffold-v1.md](docs/scaffold-v1.md)。

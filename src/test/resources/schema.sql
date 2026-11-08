@@ -12,3 +12,12 @@ CREATE TABLE tasks (
     CONSTRAINT fk_tasks_project FOREIGN KEY (project_id)
         REFERENCES projects (id) ON DELETE CASCADE
 );
+
+CREATE TABLE comments (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id BIGINT NOT NULL,
+    content VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_comments_task FOREIGN KEY (task_id)
+        REFERENCES tasks (id) ON DELETE CASCADE
+);

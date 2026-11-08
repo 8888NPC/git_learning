@@ -51,13 +51,18 @@ public final class InMemoryTaskService implements TaskService {
 
     @Override
     public synchronized boolean complete(long id) {
+        return setCompletionStatus(id, true).isPresent();
+    }
+
+    @Override
+    public synchronized Optional<Task> setCompletionStatus(long id, boolean completed) {
         for (Task task : tasks) {
             if (task.getId() == id) {
-                task.markCompleted();
-                return true;
+                task.setCompleted(completed);
+                return Optional.of(task.copy());
             }
         }
-        return false;
+        return Optional.empty();
     }
 
     @Override
