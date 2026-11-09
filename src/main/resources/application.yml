@@ -16,7 +16,9 @@ spring:
 
 springdoc:
   swagger-ui:
-    path: /swagger-ui.html
+    path: /developer/swagger-ui.html
+  api-docs:
+    path: /developer/openapi.json
 
 mybatis-plus:
   configuration:

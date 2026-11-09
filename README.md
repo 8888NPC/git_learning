@@ -1,6 +1,6 @@
-# 任务清单 REST API
+# 小事清单 · 任务管理
 
-这是一个 Java 21、Spring Boot 3、MyBatis-Plus 和 MySQL 项目，提供 Project/Task/Comment 三个业务模块、关联查询、分页搜索、任务状态修改，以及跨表事务接口。
+这是一个带用户操作页面的任务管理项目。页面使用者管理项目、任务和评论；Java 21、Spring Boot 3、MyBatis-Plus 与 MySQL 在后台提供数据和接口。
 
 ## 环境
 
@@ -48,13 +48,23 @@ powershell -ExecutionPolicy Bypass -File .\scripts\stop-local-mysql.ps1
 
 简单 ER 图见 [docs/er-diagram.md](docs/er-diagram.md)。`projects` 与 `tasks` 是一对多关系；任务可以没有所属项目。`tasks` 与 `comments` 也是一对多关系。删除项目会级联删除其任务和评论，删除任务会级联删除评论。建表语句见 [src/main/resources/db/init.sql](src/main/resources/db/init.sql)。
 
-## 用户端接口
+## 使用任务页面
 
-服务启动后可访问：
+服务启动后打开任务工作台：
 
-- Swagger UI：<http://localhost:8080/swagger-ui.html>
-- OpenAPI JSON：<http://localhost:8080/v3/api-docs>
+- 用户页面：<http://localhost:8080/>
+
+页面可以创建和筛选任务、归入项目、切换完成状态、编辑或删除任务，并查看、添加和维护评论。所有操作通过后台 API 保存到 MySQL。
+
+## 开发调试入口
+
+以下地址面向开发调试，普通用户使用页面时无需打开：
+
+- Swagger UI：<http://localhost:8080/developer/swagger-ui.html>
+- OpenAPI JSON：<http://localhost:8080/developer/openapi.json>
 - 健康检查：<http://localhost:8080/api/health>
+
+### API 路由参考
 
 任务接口：
 

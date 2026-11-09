@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7f4">
+  <title>小事清单 · 任务工作台</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="小事清单首页">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span><strong>小事清单</strong><small>把每天过得更清楚</small></span>
+      </a>
+
+      <nav class="primary-nav" aria-label="任务视图">
+        <button class="nav-item is-active" id="all-tasks-button" type="button">
+          <span class="nav-icon" aria-hidden="true">▦</span><span>所有任务</span>
+        </button>
+      </nav>
+
+      <section class="projects-section" aria-labelledby="projects-heading">
+        <div class="section-heading">
+          <h2 id="projects-heading">我的项目</h2>
+          <button class="icon-button add-project-trigger" id="show-project-form" type="button" aria-label="新建项目">＋</button>
+        </div>
+        <form class="project-create-form" id="project-form" hidden>
+          <label class="sr-only" for="project-name">项目名称</label>
+          <input id="project-name" name="name" maxlength="100" placeholder="新项目名称" required>
+          <label class="sr-only" for="project-description">项目说明</label>
+          <input id="project-description" name="description" maxlength="500" placeholder="一句话说明（可选）">
+          <button class="button button-small button-primary" type="submit">创建项目</button>
+        </form>
+        <div class="project-list" id="project-list" aria-live="polite"></div>
+      </section>
+
+      <div class="sidebar-bottom">
+        <div class="connection-pill" id="connection-state">
+          <span class="connection-dot"></span><span>正在连接</span>
+        </div>
+        <div class="profile-chip"><span class="profile-avatar">我</span><span><strong>个人空间</strong><small>专注今天要做的事</small></span></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow" id="today-label">今天</p>
+          <h1 id="view-title">所有任务</h1>
+          <p class="page-subtitle">先完成一件小事，进度就会慢慢出现。</p>
+        </div>
+        <div class="header-date" aria-hidden="true"><span class="date-sun">☼</span><span id="date-value"></span></div>
+      </header>
+
+      <section class="stats-grid" aria-label="任务概览">
+        <article class="stat-card stat-total"><span class="stat-icon">◷</span><div><span class="stat-label">当前列表</span><strong id="total-count">0</strong><small>件任务</small></div></article>
+        <article class="stat-card stat-pending"><span class="stat-icon">○</span><div><span class="stat-label">还要继续</span><strong id="pending-count">0</strong><small>待完成</small></div></article>
+        <article class="stat-card stat-done"><span class="stat-icon">✓</span><div><span class="stat-label">已经完成</span><strong id="done-count">0</strong><small>做得不错</small></div></article>
+      </section>
+
+      <section class="task-composer" aria-labelledby="composer-title">
+        <div class="composer-mark" aria-hidden="true">＋</div>
+        <form id="task-form" class="composer-form">
+          <label class="sr-only" for="task-description">要做什么？</label>
+          <input id="task-description" name="description" maxlength="200" placeholder="今天想完成什么？" autocomplete="off" required>
+          <div class="composer-actions">
+            <label class="sr-only" for="task-project">所属项目</label>
+            <select id="task-project" name="projectId" aria-label="选择项目">
+              <option value="">独立任务</option>
+            </select>
+            <button class="button button-primary" type="submit"><span aria-hidden="true">＋</span> 添加任务</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="task-board" aria-labelledby="task-board-title">
+        <div class="board-heading">
+          <div><h2 id="task-board-title">任务清单</h2><span class="board-count" id="board-count">载入中…</span></div>
+          <form class="search-form" id="search-form" role="search">
+            <label class="sr-only" for="task-search">搜索任务</label>
+            <span aria-hidden="true">⌕</span>
+            <input id="task-search" name="keyword" placeholder="搜索任务" autocomplete="off">
+            <button class="sr-only" type="submit">搜索</button>
+          </form>
+        </div>
+        <div class="filter-row" role="group" aria-label="任务状态筛选">
+          <button class="filter-button is-active" type="button" data-status="all">全部</button>
+          <button class="filter-button" type="button" data-status="open">待完成</button>
+          <button class="filter-button" type="button" data-status="done">已完成</button>
+        </div>
+        <div class="task-list" id="task-list" aria-live="polite" aria-busy="false"></div>
+      </section>
+
+      <footer class="page-footer"><span>小事清单</span><span>一步一步来，就很好。</span></footer>
+    </main>
+  </div>
+
+  <dialog class="edit-dialog" id="edit-task-dialog">
+    <form id="edit-task-form" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">任务内容</p><h2>编辑任务</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <label class="field-label" for="edit-task-description">任务名称</label>
+      <input id="edit-task-description" name="description" maxlength="200" required>
+      <label class="checkbox-line"><input id="edit-task-completed" type="checkbox"><span>标记为已完成</span></label>
+      <div class="dialog-actions"><button class="button button-quiet" type="button" data-close-dialog>取消</button><button class="button button-primary" type="submit">保存修改</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="edit-dialog" id="edit-comment-dialog">
+    <form id="edit-comment-form" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">评论内容</p><h2>编辑评论</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <label class="field-label" for="edit-comment-content">评论</label>
+      <textarea id="edit-comment-content" name="content" maxlength="1000" rows="4" required></textarea>
+      <div class="dialog-actions"><button class="button button-quiet" type="button" data-close-dialog>取消</button><button class="button button-primary" type="submit">保存修改</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="edit-dialog" id="edit-project-dialog">
+    <form id="edit-project-form" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">项目信息</p><h2>编辑项目</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <label class="field-label" for="edit-project-name">项目名称</label>
+      <input id="edit-project-name" name="name" maxlength="100" required>
+      <label class="field-label" for="edit-project-description">项目说明</label>
+      <textarea id="edit-project-description" name="description" maxlength="500" rows="3"></textarea>
+      <div class="dialog-actions"><button class="button button-quiet" type="button" data-close-dialog>取消</button><button class="button button-primary" type="submit">保存修改</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
