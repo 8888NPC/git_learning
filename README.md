@@ -1,6 +1,6 @@
 # 小事清单 · 任务管理
 
-这是一个带用户操作页面的任务管理项目。页面使用者管理项目、任务和评论；Java 21、Spring Boot 3、MyBatis-Plus 与 MySQL 在后台提供数据和接口。
+这是一个带用户操作页面的任务清单和个人账本项目。页面可管理项目、任务和评论，也可记录收支并查看分类统计；Java 21、Spring Boot 3、MyBatis-Plus 与 MySQL 在后台提供数据和接口。
 
 ## 环境
 
@@ -55,6 +55,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\stop-local-mysql.ps1
 - 用户页面：<http://localhost:8080/>
 
 页面可以创建和筛选任务、归入项目、切换完成状态、编辑或删除任务，并查看、添加和维护评论。所有操作通过后台 API 保存到 MySQL。
+
+## 使用个人账本
+
+服务启动后打开 <http://localhost:8080/finance.html>，或从任务清单左侧的“账目与分类统计”入口进入。页面可记录收入和支出，编辑、删除账目，按日期、类型和分类筛选，并查看收入、支出、结余及分类统计。支出分类含饮食、生活缴费、娱乐、网络应用、交通、住房、购物、日用、其他；收入分类含工资、红包、奖金、兼职、其他。
+
+本模块新增两张表和 6 个接口：`POST /api/v1/ledger/entries`、`GET /api/v1/ledger/entries`、`GET /api/v1/ledger/entries/{id}`、`PUT /api/v1/ledger/entries/{id}`、`DELETE /api/v1/ledger/entries/{id}`、`GET /api/v1/ledger/summary`。完整设计、校验规则和验证结果见 [个人记账与分类统计系统报告](docs/personal-finance-system-report.md)。
+
+快速新增一笔支出：
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri 'http://localhost:8080/api/v1/ledger/entries' `
+  -ContentType 'application/json' `
+  -Body '{"categoryId":5,"amount":35.80,"occurredOn":"2026-11-09","note":"午餐"}'
+```
 
 ## 开发调试入口
 
@@ -137,7 +152,7 @@ Invoke-RestMethod -Method Patch `
 mvn clean verify
 ```
 
-测试使用 H2 的 MySQL 兼容模式，覆盖 Project/Task/Comment CRUD、分页与关联查询、状态修改、参数错误、级联删除及事务回滚。测试数据库配置位于 `src/test/resources`，不会连接或清空本机 MySQL 数据库。SQL 技能审查记录见 [docs/week-04-skill-review.md](docs/week-04-skill-review.md)。
+测试使用 H2 的 MySQL 兼容模式，覆盖 Project/Task/Comment 和记账接口 CRUD、分页与关联查询、汇总、参数错误、级联删除及事务回滚。测试数据库配置位于 `src/test/resources`，不会连接或清空本机 MySQL 数据库。SQL 技能审查记录见 [docs/week-04-skill-review.md](docs/week-04-skill-review.md) 和 [记账系统报告](docs/personal-finance-system-report.md)。
 
 ## 分支与本周产出
 

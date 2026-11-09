@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7f4">
+  <title>个人账本 · 收支记录</title>
+  <link rel="stylesheet" href="/finance.css?v=20261109-4">
+  <script src="/finance.js?v=20261109-4" defer></script>
+</head>
+<body>
+  <main class="finance-shell">
+    <header class="topbar">
+      <a class="back-link" href="/">← 返回任务清单</a>
+      <span class="brand-label">PERSONAL FINANCE</span>
+    </header>
+    <section class="welcome">
+      <div><p class="eyebrow">MY LEDGER</p><h1>个人账本</h1><p>记下每一笔收支，看看钱都去了哪里。</p></div>
+      <div class="welcome-icon" aria-hidden="true">￥</div>
+    </section>
+    <section class="summary-section" aria-labelledby="summary-title">
+      <div class="section-title"><div><p class="eyebrow">OVERVIEW</p><h2 id="summary-title">收支概览</h2></div>
+        <div class="date-range"><label>开始日期<input id="summary-from" type="date"></label><label>结束日期<input id="summary-to" type="date"></label><button id="summary-refresh" class="button button-light" type="button">更新</button></div>
+      </div>
+      <div id="summary-grid" class="summary-grid" hidden>
+        <article class="summary-card income-card"><span>本期收入</span><strong id="income-total">¥0.00</strong><small>所有收入分类合计</small></article>
+        <article class="summary-card expense-card"><span>本期支出</span><strong id="expense-total">¥0.00</strong><small>所有支出分类合计</small></article>
+        <article class="summary-card balance-card"><span>收支结余</span><strong id="balance-total">¥0.00</strong><small>收入减去支出</small></article>
+      </div>
+      <div class="category-panel" hidden><div class="panel-heading"><div><p class="eyebrow">BY CATEGORY</p><h3>分类统计</h3></div><span id="category-hint">当前日期范围</span></div><div id="category-list" class="category-list"></div></div>
+    </section>
+
+    <section class="ledger-section" aria-labelledby="ledger-title">
+      <div class="section-title"><div><p class="eyebrow">TRANSACTIONS</p><h2 id="ledger-title">账目明细</h2></div><span class="section-note">支持按日期、类型和分类筛选</span></div>
+      <form id="entry-form" class="entry-form">
+        <div class="form-heading"><div><p class="eyebrow">NEW ENTRY</p><h3 id="form-title">记一笔</h3></div><button id="cancel-edit" class="text-button" type="button" hidden>取消修改</button></div>
+        <div class="form-grid">
+          <label>收支类型<select id="entry-type" required><option value="EXPENSE">支出</option><option value="INCOME">收入</option></select></label>
+          <label>分类<select id="entry-category" required></select></label>
+          <label>金额（元）<input id="entry-amount" type="number" min="0.01" max="9999999999.99" step="0.01" placeholder="0.00" required></label>
+          <label>发生日期<input id="entry-date" type="date" required></label>
+          <label class="note-field">备注（选填）<input id="entry-note" maxlength="255" placeholder="例如：午餐、月度工资"></label>
+          <button id="submit-entry" class="button button-primary" type="submit">保存账目</button>
+        </div>
+        <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
+      </form>
+      <div class="filters">
+        <label>开始日期<input id="filter-from" type="date"></label><label>结束日期<input id="filter-to" type="date"></label>
+        <label>收支<select id="filter-type"><option value="">全部收支</option><option value="INCOME">收入</option><option value="EXPENSE">支出</option></select></label>
+        <label>分类<select id="filter-category"><option value="">全部分类</option></select></label>
+        <button id="filter-apply" class="button button-light" type="button">筛选</button>
+      </div>
+      <div id="ledger-list" class="ledger-list" aria-live="polite" aria-busy="false"></div>
+      <div class="pagination"><button id="page-prev" class="button button-light" type="button">上一页</button><span id="page-label">第 1 页</span><button id="page-next" class="button button-light" type="button">下一页</button></div>
+    </section>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </main>
+</body>
+</html>

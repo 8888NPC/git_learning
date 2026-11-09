@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -33,6 +34,13 @@ public class ApiExceptionHandler {
                         ? exception.getMessage()
                         : "请求 JSON 格式不正确";
         return failure(HttpStatus.BAD_REQUEST, "BAD_REQUEST", message);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleParameterTypeMismatch(
+            MethodArgumentTypeMismatchException exception) {
+        return failure(HttpStatus.BAD_REQUEST, "BAD_REQUEST",
+                "请求参数格式不正确：" + exception.getName());
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)

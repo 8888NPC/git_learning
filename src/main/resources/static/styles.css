@@ -34,6 +34,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .primary-nav { margin: 42px 0 34px; }
 .nav-item, .project-select { width: 100%; display: flex; align-items: center; gap: 12px; border: 0; background: transparent; text-align: left; cursor: pointer; }
 .nav-item { padding: 12px 14px; color: #52615a; font-size: 14px; border-radius: 9px; }
+.nav-item[href="/finance.html"] { text-decoration: none; }
 .nav-item:hover, .project-row:hover { background: #f0f4f0; }
 .nav-item.is-active { color: var(--green-dark); background: #e8f1eb; font-weight: 600; }
 .nav-icon { width: 18px; text-align: center; font-size: 17px; }
